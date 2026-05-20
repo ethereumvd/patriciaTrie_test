@@ -20,7 +20,8 @@ import (
 //  	LookUp(key string) search for a key and update the LRU as it is most recently used , return val if found
 //  	LookUpWithoutChangingOrder(key string) same but doesn't affect LRU
 //  	UpdateWithoutChangingOrder(key string, val any) updates key is present otherwise return error
-//
+//		UpdateSize(key string, sizeDelta unit64) updates current size when entry's size has changed
+//		EraseEntriesWithGivenPrefix(prefix string)
 
 //helper functions for bit operations/manipulation
 
@@ -151,6 +152,7 @@ func (tr *PatriciaTree) insert(key string, val any) {
 	}
 }
 
+// as LRU has not been implemented yet, lookUp and lookUpWithoutChangingOrder are currently same
 func (tr *PatriciaTree) lookUp(key string) bool {
 
 	//edge case if no entries present
