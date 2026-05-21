@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 )
 
 //TODO - implement the remaining functions and embed the LRU pointers
@@ -153,11 +154,13 @@ func (tr *PatriciaTree) insert(key string, val any) {
 }
 
 // as LRU has not been implemented yet, lookUp and lookUpWithoutChangingOrder are currently same
-func (tr *PatriciaTree) lookUp(key string) bool {
+func (tr *PatriciaTree) lookUp(key string) (*Node, error) {
+
+	err := fmt.Errorf("key ' %s ' not found", key)
 
 	//edge case if no entries present
 	if tr.root == nil {
-		return false
+		return nil, err
 	}
 
 	curr := tr.root
@@ -170,11 +173,158 @@ func (tr *PatriciaTree) lookUp(key string) bool {
 	}
 
 	if curr.key == key {
-		return true
+		return curr, nil
 	}
-	return false
+
+	return nil, err
+}
+
+func (tr *PatriciaTree) UpdateWithoutChangingOrder(key string, newVal any) error {
+	node, err := tr.lookUp(key)
+
+	if err != nil {
+		return err
+	}
+
+	node.val = newVal
+
+	return nil
+}
+
+func (tr *PatriciaTree) eraseInternal(key string) error {
+	_, err := tr.lookUp(key)
+	if err != nil {
+		return err
+	}
+
+	//edge case when root is itself the tree i.e no parent node
+	//another edge case is when only one internal node is present i.e there is no grandparent of the leaf
+
+	var par *Node
+	var grPar *Node
+	curr := tr.root
+
+	for !curr.isLeaf {
+		grPar = par
+		par = curr
+		if key[curr.bitIndex] == 1 {
+			curr = curr.right
+		} else {
+			curr = curr.left
+		}
+	}
+
+	//if root itself is to be deleted
+	if par == nil {
+		tr.root = nil
+		return nil
+	}
+
+	//if the leaf is at height 1 it may have a long sibling subtree
+	//hence par is tr.root
+	if grPar == nil {
+		if key == par.left.key {
+			par.key = par.left.key
+			par.val = par.left.val
+		} else {
+			par.key = par.right.key
+			par.val = par.right.val
+		}
+		par.left = nil
+		par.right = nil
+		return nil
+	}
+
+	//normal case with grandparent
+	//rearrange pointers
+	if par.left.key == key {
+		if grPar.left == par {
+			grPar.left = par.left
+			par = nil
+		} else {
+			grPar.right = par.left
+			par = nil
+		}
+	} else {
+		if grPar.left == par {
+			grPar.left = par.right
+			par = nil
+		} else {
+			grPar.right = par.right
+			par = nil
+		}
+	}
+
+	return nil
+}
+
+func (tr *PatriciaTree) eraseKeys(keys []string) error {
+
+	for _, key := range keys {
+		err := tr.eraseInternal(key)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// this theoretically optimizes the current hashmap implementation's time complexity from O(number of keys) to O(max(length of keys))
+// so in testcases where not a lot of entries are present but with long directory names (which is rare)
+func (tr *PatriciaTree) eraseEntriesWithGivenPrefix(prefix string) error {
+
+	//the first bitIndex >= len(prefix) * 8 will be where all nodes under it will have the desired prefix
+	//we will need to delete such node
+	//and attach it's sibling to it's grandparent eliminating the parent as well
+
+	var par *Node
+	var grPar *Node
+	curr := tr.root
+
+	for !curr.isLeaf && curr.bitIndex < len(prefix)*8 {
+		grPar = par
+		par = curr
+		if prefix[curr.bitIndex] == 1 {
+			curr = curr.right
+		} else {
+			curr = curr.left
+		}
+	}
+
+	//edge case if only root is there as a leaf we check if it has the prefix
+	if par == nil {
+
+		//if root itself is nil then no entries exist
+		if tr.root == nil {
+			return fmt.Errorf("No entries exist")
+		}
+
+		if strings.HasPrefix(tr.root.key, prefix) {
+			tr.root = nil
+			return nil
+		} else {
+			return fmt.Errorf("No entries with given prefix ' %s ' exist", prefix)
+		}
+	}
+
+	//edge case if height 1 binary tree i.e no grandparent
+	if grPar == nil {
+
+	}
+
+	//an edge case is if no entries of the prefix exist so we do a arbitrary traversal of the tree just to confirm
+
+	//normal case have to rearrange pointers
+
+	return nil
 }
 
 func main() {
-	fmt.Println("hello")
+	fmt.Println("patriciatree test")
 }
+
+//BUG NOTICED :- In the case where we check for grPar != nil it is possible the other sibling of the node (leaf) to not be a leaf
+
+
+
